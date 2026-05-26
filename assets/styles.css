@@ -453,3 +453,19 @@ section { padding: var(--section-pad-y) 0; position: relative; }
 @media (max-width: 600px) {
   .grid-4 { grid-template-columns: 1fr; }
 }
+
+/* ===== Figures / infographics ===== */
+.figure-block { margin: 0; }
+.figure-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.figure-caption {
+  margin-top: 14px;
+}
+.figure-caption-right { text-align: right; }
+.figure-wide { grid-column: 1 / -1; }
+@media (min-width: 901px) {
+  #ciljne .grid-2:has(.figure-wide) { grid-template-columns: 1.1fr 0.9fr; }
+}
