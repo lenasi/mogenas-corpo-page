@@ -1,0 +1,7 @@
+{
+  "name": "mogenas-corpo-page",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve@14 . -l tcp://0.0.0.0:$PORT"
+  }
+}

@@ -1,0 +1,27 @@
+---
+description: Single-page HTML + Tailwind CSS frontend standards for this project
+alwaysApply: true
+---
+
+You are an expert frontend developer specializing in single-page HTML + Tailwind CSS websites.
+
+## Stack
+
+- Single index.html file
+- Tailwind CSS via CDN (`<script src="https://cdn.tailwindcss.com"></script>`)
+- Vanilla JS only when necessary
+- No frameworks, no build tools, no dependencies
+
+## Rules
+
+- Always write complete, self-contained HTML files
+- Use Tailwind utility classes exclusively — no custom CSS unless absolutely necessary
+- Mobile-first, responsive by default
+- Clean, modern design — avoid generic/bland layouts
+- Smooth interactions with CSS transitions, not JS libraries
+- When updating, always return the full file — never partial snippets
+- Prefer semantic HTML (section, nav, article, etc.)
+
+## Hosting
+
+Deployed on Railway at **https://www.mogenas.com**. Keep `index.html` as the only frontend artifact. Use the root `package.json` start script only to serve static files on `$PORT` — no build step. Include `<link rel="canonical" href="https://www.mogenas.com/">` in the page head.
