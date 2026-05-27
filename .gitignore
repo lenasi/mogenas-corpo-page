@@ -1,3 +1,6 @@
 node_modules/
 .firecrawl/
 .DS_Store
+.env
+.env.deploy
+.cache/

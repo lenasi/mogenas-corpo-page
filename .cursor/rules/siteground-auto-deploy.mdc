@@ -1,0 +1,33 @@
+---
+description: Auto-deploy site changes to SiteGround production after every edit
+alwaysApply: true
+---
+
+# SiteGround auto-deploy
+
+Production: **https://www.mogenas.com** via `npm run deploy` (rsync over SSH `mogenas-siteground`).
+
+## Required behavior
+
+After you **create or edit any deployable file**, run deploy **in the same turn** before finishing — do not wait for the user to ask:
+
+```bash
+cd "/Users/mihalenasi/Developer/mogenas.com corpo page" && npm run deploy
+```
+
+**Deployable files:** `index.html`, `assets/**`, `*/index.html` (legal pages), `robots.txt`, `sitemap.xml`, `.htaccess`
+
+**Skip deploy** only when changes are limited to: `.env`, `.cursor/**`, `scripts/**`, `package.json`, `.gitignore`, docs-only files, or the user says not to deploy.
+
+## On success
+
+Briefly confirm: deployed to SiteGround and live at https://www.mogenas.com/
+
+## On failure
+
+Report the error (SSH, rsync, path). Do not claim the site is updated. Suggest `npm run setup-ssh` if the key is not loaded.
+
+## Do not
+
+- Commit or push to git unless the user asks
+- Commit `.env` or SSH keys

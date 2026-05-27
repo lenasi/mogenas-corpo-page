@@ -2,6 +2,9 @@
   "name": "mogenas-corpo-page",
   "private": true,
   "scripts": {
-    "start": "npx --yes serve@14 . -l tcp://0.0.0.0:$PORT"
+    "start": "npx --yes serve@14 . -l tcp://0.0.0.0:${PORT:-3000}",
+    "deploy": "bash scripts/deploy.sh",
+    "purge-cache": "bash scripts/purge-cache.sh",
+    "setup-ssh": "bash scripts/setup-ssh.sh"
   }
 }

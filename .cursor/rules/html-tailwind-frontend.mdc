@@ -24,4 +24,11 @@ You are an expert frontend developer specializing in single-page HTML + Tailwind
 
 ## Hosting
 
-Deployed on Railway at **https://www.mogenas.com**. Keep `index.html` as the only frontend artifact. Use the root `package.json` start script only to serve static files on `$PORT` — no build step. Include `<link rel="canonical" href="https://www.mogenas.com/">` in the page head.
+Hosted on **SiteGround** at **https://www.mogenas.com**. The site is **static HTML/CSS/JS only** — no Node runtime, no build step on the server.
+
+- Upload files to the domain’s **`public_html`** directory (path varies by account; see `.env.deploy.example`).
+- SSH: **`npm run setup-ssh`** once (saves `Host mogenas-siteground` in `~/.ssh/config`; add public key in SiteGround → SSH Keys Manager).
+- **Auto-deploy:** after any change to HTML, CSS, JS, assets, `robots.txt`, `sitemap.xml`, or `.htaccess`, run **`npm run deploy`** before ending the task (see `siteground-auto-deploy.mdc`). Never commit `.env` (credentials).
+- `package.json` **`npm start`** is for **local preview only** (`serve` on `$PORT`), not production.
+- Include `<link rel="canonical" href="https://www.mogenas.com/">` (or the page’s full URL) in each page head.
+- Site structure: `index.html`, `assets/`, legal pages in subfolders with `index.html`, plus `robots.txt` and `sitemap.xml` at the site root.

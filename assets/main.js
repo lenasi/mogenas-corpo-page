@@ -23,6 +23,30 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
+  // ---------- Mobile nav ----------
+  const navToggle = document.querySelector('.nav-toggle');
+  const siteNav = document.getElementById('site-nav');
+  if (nav && navToggle && siteNav) {
+    const closeNav = () => {
+      nav.classList.remove('is-open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      navToggle.setAttribute('aria-label', 'Odpri meni');
+      document.body.style.overflow = '';
+    };
+    navToggle.addEventListener('click', () => {
+      const open = nav.classList.toggle('is-open');
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Zapri meni' : 'Odpri meni');
+      document.body.style.overflow = open && window.innerWidth <= 900 ? 'hidden' : '';
+    });
+    siteNav.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', closeNav);
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 900) closeNav();
+    });
+  }
+
   // ---------- Year ----------
   const yr = document.getElementById('year');
   if (yr) yr.textContent = new Date().getFullYear();
@@ -150,6 +174,46 @@
 
   buildTweaks();
   applyState();
+
+  // ---------- Pyramid segment focus (hover / keyboard / touch) ----------
+  const pyramidCard = document.querySelector('.pyramid-card--nested');
+  if (pyramidCard) {
+    const triggers = pyramidCard.querySelectorAll('[data-py-segment]');
+    const legendTabs = pyramidCard.querySelectorAll('.pyramid-legend-item[role="tab"]');
+    let touchFocus = null;
+
+    const setFocus = (id) => {
+      if (id) {
+        pyramidCard.setAttribute('data-py-focus', id);
+        legendTabs.forEach((tab) => {
+          tab.setAttribute('aria-selected', tab.dataset.pySegment === id ? 'true' : 'false');
+        });
+      } else {
+        pyramidCard.removeAttribute('data-py-focus');
+        legendTabs.forEach((tab) => tab.setAttribute('aria-selected', 'false'));
+      }
+    };
+
+    triggers.forEach((el) => {
+      const id = el.dataset.pySegment;
+      if (!id) return;
+
+      el.addEventListener('mouseenter', () => setFocus(id));
+      el.addEventListener('focus', () => setFocus(id));
+
+      el.addEventListener('click', () => {
+        if (!window.matchMedia('(hover: none)').matches) return;
+        touchFocus = touchFocus === id ? null : id;
+        setFocus(touchFocus);
+      });
+    });
+
+    pyramidCard.addEventListener('mouseleave', () => setFocus(null));
+
+    pyramidCard.addEventListener('focusout', (e) => {
+      if (!pyramidCard.contains(e.relatedTarget)) setFocus(null);
+    });
+  }
 
   // Edit mode protocol — listener FIRST, then announce.
   window.addEventListener('message', (e) => {

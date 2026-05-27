@@ -1,0 +1,10 @@
+# SiteGround (Apache): HTTPS + www canonical for www.mogenas.com
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+RewriteCond %{HTTP_HOST} ^mogenas\.com$ [NC]
+RewriteRule ^ https://www.mogenas.com%{REQUEST_URI} [L,R=301]
+</IfModule>

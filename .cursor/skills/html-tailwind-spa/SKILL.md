@@ -4,7 +4,8 @@ description: >-
   Builds single-page HTML websites with Tailwind CSS CDN and vanilla JS.
   Use when creating or editing index.html, corporate/landing pages, static
   sites, Tailwind utility layouts, or when the user mentions HTML + Tailwind
-  without frameworks or build tools. Hosted on Railway as a static site.
+  without frameworks or build tools. Hosted on SiteGround; agents auto-deploy
+  to production after site file changes via npm run deploy.
 ---
 
 # HTML + Tailwind Single-Page Frontend
@@ -28,16 +29,17 @@ You are an expert frontend developer specializing in single-page HTML + Tailwind
 - When updating, always return the full file — never partial snippets
 - Prefer semantic HTML (section, nav, article, etc.)
 
-## Hosting (Railway)
+## Hosting (SiteGround)
 
-This site deploys to [Railway](https://railway.com). The page itself stays dependency-free; Railway needs a small static file server that listens on `$PORT`.
+Production is **static files on SiteGround** at **https://www.mogenas.com** — Apache serves the site; no Railway, no Node on the server.
 
-- Frontend: `index.html` only — no build step
-- Deploy: root-level `package.json` with `serve` start script (deployment wrapper, not part of the page stack)
-- Railway auto-detects Node via Nixpacks and runs `npm start`
-- Bind to `0.0.0.0:$PORT` — Railway sets `PORT` at runtime
-- Custom domain: **https://www.mogenas.com** — configure in Railway → Settings → Networking (CNAME `www` → Railway target)
-- Do not add build scripts, bundlers, or frameworks for deployment
+- **Document root:** domain `public_html` (e.g. `~/www/mogenas.com/public_html` or `~/public_html` — confirm in Site Tools → Site → File Manager or SSH).
+- **SSH setup:** `npm run setup-ssh` writes `Host mogenas-siteground` to `~/.ssh/config` and creates `~/.ssh/siteground_mogenas`. Add the printed public key in SiteGround → Devs → SSH Keys Manager (key-only auth; password login is not used).
+- **Deploy:** `npm run deploy` runs `scripts/deploy.sh` (`rsync` via `mogenas-siteground`). Credentials in `.env` (copy from `.env.deploy.example`); never commit `.env`.
+- **SSH host:** `ssh.mogenas.com`, port `18765` (see Site Tools → Devs → SSH Terminal).
+- **Local dev only:** `npm start` runs `serve` for preview — not used in production.
+- **HTTPS / www:** optional root `.htaccess` redirects apex and HTTP to `https://www.mogenas.com`.
+- Do not add build scripts, bundlers, or server-side runtimes for deployment.
 
 ## Workflow
 
@@ -46,6 +48,7 @@ This site deploys to [Railway](https://railway.com). The page itself stays depen
 3. Use semantic landmarks: `header`, `nav`, `main`, `section`, `footer`.
 4. Add vanilla JS only for behavior Tailwind/CSS cannot handle (mobile nav toggle, smooth scroll targets).
 5. Write the complete file to disk — do not reply with partial diffs.
+6. **Always deploy** after site changes: `npm run deploy` (same turn, no need to wait for user). Skip only for non-site files (`.env`, scripts, docs) or if user says not to deploy.
 
 ## HTML skeleton
 
@@ -72,7 +75,7 @@ This site deploys to [Railway](https://railway.com). The page itself stays depen
 ## Design defaults
 
 - Typography: vary weight and size for hierarchy; avoid default gray-on-white without accent color
-- Spacing: generous padding on sections (`py-16` / `py-24`), consistent container (`max-w-6xl mx-auto px-4`)
+- Spacing: generous padding on sections (`py-16` / `py-24`); site container cap is `--max-w: 1400px` in `assets/styles.css` (`.container`)
 - Interactions: `transition`, `hover:`, `focus-visible:` for links and buttons
 - Custom CSS: only for `@keyframes` or cases Tailwind cannot express; prefer `tailwind.config` inline via CDN script if needed
 
@@ -83,5 +86,6 @@ This site deploys to [Railway](https://railway.com). The page itself stays depen
 - [ ] Mobile-first responsive classes
 - [ ] Semantic HTML structure
 - [ ] No frameworks, build tools, or npm dependencies in the page itself
-- [ ] Canonical URL and `og:url` point to `https://www.mogenas.com/`
-- [ ] `package.json` start script serves static files on Railway `$PORT`
+- [ ] Canonical URL and `og:url` point to `https://www.mogenas.com/` (or the page URL)
+- [ ] `robots.txt` and `sitemap.xml` at site root
+- [ ] Ran `npm run deploy` and confirmed live at https://www.mogenas.com/
