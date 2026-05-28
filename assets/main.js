@@ -27,24 +27,65 @@
   const navToggle = document.querySelector('.nav-toggle');
   const siteNav = document.getElementById('site-nav');
   if (nav && navToggle && siteNav) {
-    const closeNav = () => {
-      nav.classList.remove('is-open');
-      navToggle.setAttribute('aria-expanded', 'false');
-      navToggle.setAttribute('aria-label', 'Odpri meni');
-      document.body.style.overflow = '';
+    let navScrollY = 0;
+    const mobileNavMq = window.matchMedia('(max-width: 900px)');
+    const isMobileNav = () => mobileNavMq.matches;
+
+    const lockScroll = () => {
+      navScrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${navScrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
     };
-    navToggle.addEventListener('click', () => {
-      const open = nav.classList.toggle('is-open');
+
+    const unlockScroll = () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, navScrollY);
+    };
+
+    const setNavOpen = (open) => {
+      nav.classList.toggle('is-open', open);
       navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       navToggle.setAttribute('aria-label', open ? 'Zapri meni' : 'Odpri meni');
-      document.body.style.overflow = open && window.innerWidth <= 900 ? 'hidden' : '';
+      siteNav.hidden = !open && isMobileNav();
+    };
+
+    const closeNav = () => {
+      const wasOpen = nav.classList.contains('is-open');
+      setNavOpen(false);
+      if (wasOpen && isMobileNav()) unlockScroll();
+    };
+
+    const openNav = () => {
+      setNavOpen(true);
+      if (isMobileNav()) lockScroll();
+    };
+
+    navToggle.addEventListener('click', () => {
+      if (nav.classList.contains('is-open')) closeNav();
+      else openNav();
     });
+
     siteNav.querySelectorAll('a').forEach((link) => {
       link.addEventListener('click', closeNav);
     });
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 900) closeNav();
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) closeNav();
     });
+
+    mobileNavMq.addEventListener('change', (e) => {
+      if (!e.matches) closeNav();
+      else siteNav.hidden = !nav.classList.contains('is-open');
+    });
+
+    siteNav.hidden = isMobileNav();
   }
 
   // ---------- Year ----------
@@ -127,7 +168,7 @@
         <div class="group-label">Paleta</div>
         <div class="swatches">
           <div class="swatch" data-key="palette" data-val="paper" title="Paper"
-            style="background:linear-gradient(120deg,#f5f2ec 50%,#c8533a 50%)"></div>
+            style="background:linear-gradient(120deg,#f5f2ec 50%,#e60033 50%)"></div>
           <div class="swatch" data-key="palette" data-val="linen" title="Linen"
             style="background:linear-gradient(120deg,#efe9dd 50%,#9a5e2a 50%)"></div>
           <div class="swatch" data-key="palette" data-val="graphite" title="Graphite"
@@ -222,5 +263,165 @@
     if (d.type === '__deactivate_edit_mode') tweaksEl.classList.remove('show');
   });
   try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch(e) {}
+
+  // ---------- Journey scroll: keyboard focus only when horizontal (desktop) ----------
+  const journeyScroll = document.querySelector('.figure-panel-journey .journey-scroll');
+  if (journeyScroll) {
+    const journeyScrollMq = window.matchMedia('(min-width: 901px)');
+    const syncJourneyScrollTabIndex = () => {
+      journeyScroll.tabIndex = journeyScrollMq.matches ? 0 : -1;
+    };
+    syncJourneyScrollTabIndex();
+    journeyScrollMq.addEventListener('change', syncJourneyScrollTabIndex);
+  }
+
+  // ---------- Figure lightbox (Premica overview) ----------
+  const figureLightboxTriggers = document.querySelectorAll('[data-figure-lightbox]');
+  if (figureLightboxTriggers.length) {
+    const lightbox = document.getElementById('figure-lightbox');
+    const lightboxImg = lightbox?.querySelector('.figure-lightbox__img');
+    const closeBtn = lightbox?.querySelector('.figure-lightbox__close');
+    let lastFocus;
+
+    const closeLightbox = () => {
+      if (!lightbox) return;
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (lastFocus) lastFocus.focus();
+    };
+
+    const openLightbox = (src, alt) => {
+      if (!lightbox || !lightboxImg) return;
+      lastFocus = document.activeElement;
+      lightboxImg.src = src;
+      lightboxImg.alt = alt || '';
+      lightbox.classList.add('is-open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      closeBtn?.focus();
+    };
+
+    closeBtn?.addEventListener('click', closeLightbox);
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox?.classList.contains('is-open')) closeLightbox();
+    });
+
+    figureLightboxTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        const src = trigger.getAttribute('data-figure-lightbox');
+        const alt = trigger.getAttribute('data-figure-lightbox-alt') || '';
+        if (src) openLightbox(src, alt);
+      });
+    });
+  }
+
+  // ---------- Pogoji.si legal modal (AJAX) ----------
+  const pogojiLinks = document.querySelectorAll('[data-pogoji-fetch]');
+  if (pogojiLinks.length) {
+    const cache = new Map();
+    let dialog = document.getElementById('pogoji-dialog');
+    let titleEl;
+    let bodyEl;
+    let statusEl;
+    let contentEl;
+    let lastFocus;
+
+    const ensureDialog = () => {
+      if (dialog) return;
+      dialog = document.createElement('div');
+      dialog.id = 'pogoji-dialog';
+      dialog.className = 'pogoji-dialog';
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.setAttribute('aria-hidden', 'true');
+      dialog.innerHTML = `
+        <div class="pogoji-dialog__panel">
+          <div class="pogoji-dialog__head">
+            <h2 class="pogoji-dialog__title" id="pogoji-dialog-title"></h2>
+            <button type="button" class="pogoji-dialog__close" aria-label="Zapri">×</button>
+          </div>
+          <div class="pogoji-dialog__body">
+            <p class="pogoji-dialog__status">Nalagam …</p>
+            <div class="pogoji-dialog__content" hidden></div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(dialog);
+      titleEl = dialog.querySelector('#pogoji-dialog-title');
+      bodyEl = dialog.querySelector('.pogoji-dialog__body');
+      statusEl = dialog.querySelector('.pogoji-dialog__status');
+      contentEl = dialog.querySelector('.pogoji-dialog__content');
+      const closeBtn = dialog.querySelector('.pogoji-dialog__close');
+
+      const closeDialog = () => {
+        dialog.classList.remove('is-open');
+        dialog.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (lastFocus) lastFocus.focus();
+      };
+
+      closeBtn.addEventListener('click', closeDialog);
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) closeDialog();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && dialog.classList.contains('is-open')) closeDialog();
+      });
+    };
+
+    const renderPogojiHtml = (html) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const root = doc.querySelector('.terms .box') || doc.querySelector('.terms');
+      if (!root) return '';
+      root.querySelectorAll('script, style').forEach((el) => el.remove());
+      return root.innerHTML;
+    };
+
+    const openPogoji = async (url, title) => {
+      ensureDialog();
+      lastFocus = document.activeElement;
+      titleEl.textContent = title;
+      dialog.setAttribute('aria-labelledby', 'pogoji-dialog-title');
+      dialog.classList.add('is-open');
+      dialog.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      statusEl.hidden = false;
+      statusEl.textContent = 'Nalagam …';
+      contentEl.hidden = true;
+      contentEl.innerHTML = '';
+
+      try {
+        let html = cache.get(url);
+        if (!html) {
+          const res = await fetch(url, { credentials: 'omit' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          html = await res.text();
+          cache.set(url, html);
+        }
+        const rendered = renderPogojiHtml(html);
+        if (!rendered) throw new Error('Vsebina ni na voljo');
+        contentEl.innerHTML = rendered;
+        statusEl.hidden = true;
+        contentEl.hidden = false;
+      } catch (err) {
+        statusEl.textContent = 'Vsebine ni mogoče naložiti. Poskusite znova ali odprite povezavo v novem zavihku.';
+        statusEl.hidden = false;
+        contentEl.hidden = true;
+      }
+    };
+
+    pogojiLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = link.getAttribute('href');
+        const title = link.dataset.pogojiTitle || link.textContent.trim();
+        openPogoji(url, title);
+      });
+    });
+  }
 
 })();
