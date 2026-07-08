@@ -1,4 +1,4 @@
-/* ========= Mogenas — interactions & tweaks ========= */
+/* ========= Mogenas — interactions ========= */
 (function () {
   'use strict';
 
@@ -16,12 +16,15 @@
 
   // ---------- Sticky nav border ----------
   const nav = document.querySelector('.nav');
-  const onScroll = () => {
-    if (window.scrollY > 8) nav.classList.add('is-scrolled');
-    else nav.classList.remove('is-scrolled');
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
+  let closeMobileNav = () => {};
+  if (nav) {
+    const onScroll = () => {
+      if (window.scrollY > 8) nav.classList.add('is-scrolled');
+      else nav.classList.remove('is-scrolled');
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
 
   // ---------- Mobile nav ----------
   const navToggle = document.querySelector('.nav-toggle');
@@ -62,6 +65,8 @@
       if (wasOpen && isMobileNav()) unlockScroll();
     };
 
+    closeMobileNav = closeNav;
+
     const openNav = () => {
       setNavOpen(true);
       if (isMobileNav()) lockScroll();
@@ -88,35 +93,102 @@
     siteNav.hidden = isMobileNav();
   }
 
+  // ---------- Smooth in-page anchor scroll (sticky nav + mobile menu) ----------
+  const getScrollOffset = () => {
+    const navH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'), 10);
+    return (Number.isFinite(navH) ? navH : 84) + 16;
+  };
+
+  const scrollToId = (id, { behavior = 'smooth', updateHistory = true } = {}) => {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    const top = el.getBoundingClientRect().top + window.scrollY - getScrollOffset();
+    window.scrollTo({ top: Math.max(0, top), behavior });
+    if (updateHistory && location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
+    return true;
+  };
+
+  const getHashId = () => {
+    if (location.hash.length <= 1) return '';
+    try {
+      return decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return '';
+    }
+  };
+
+  const clearInvalidHash = (id) => {
+    console.warn('[Mogenas] Anchor not found:', id);
+    history.replaceState(null, '', location.pathname + location.search);
+  };
+
+  const scrollToHash = ({ behavior = 'smooth', updateHistory = true } = {}) => {
+    const id = getHashId();
+    if (!id) return false;
+    return scrollToId(id, { behavior, updateHistory });
+  };
+
+  const scrollToHashWhenReady = (behavior = 'instant') => {
+    const id = getHashId();
+    if (!id) {
+      if (location.hash.length > 1) clearInvalidHash(location.hash.slice(1));
+      return;
+    }
+
+    const maxAttempts = 10;
+    let attempts = 0;
+
+    const tryScroll = () => scrollToId(id, { behavior, updateHistory: false });
+
+    const finishOrRetry = () => {
+      if (tryScroll()) return;
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(finishOrRetry);
+      } else if (document.readyState === 'complete') {
+        if (!tryScroll()) clearInvalidHash(id);
+      } else {
+        window.addEventListener('load', () => {
+          if (!tryScroll()) clearInvalidHash(id);
+        }, { once: true });
+      }
+    };
+
+    finishOrRetry();
+  };
+
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href^="#"]');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href || href === '#') return;
+    const id = href.slice(1);
+    if (!document.getElementById(id)) return;
+
+    e.preventDefault();
+    const navWasOpen = nav?.classList.contains('is-open');
+    if (navWasOpen) closeMobileNav();
+    const doScroll = () => scrollToId(id);
+    if (navWasOpen) requestAnimationFrame(() => requestAnimationFrame(doScroll));
+    else doScroll();
+  });
+
+  if (location.hash.length > 1) {
+    try { history.scrollRestoration = 'manual'; } catch (e) {}
+    scrollToHashWhenReady('instant');
+  }
+
+  window.addEventListener('hashchange', () => {
+    if (location.hash.length <= 1) return;
+    if (!scrollToHash({ behavior: 'smooth', updateHistory: false })) {
+      clearInvalidHash(getHashId() || location.hash.slice(1));
+    }
+  });
+
   // ---------- Year ----------
   const yr = document.getElementById('year');
   if (yr) yr.textContent = new Date().getFullYear();
-
-  // ---------- Animated 25× counter ----------
-  const counterEl = document.getElementById('counter');
-  if (counterEl) {
-    let counted = false;
-    const cio = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting && !counted) {
-          counted = true;
-          const target = 25;
-          let n = 0;
-          const t0 = performance.now();
-          const dur = 1400;
-          const tick = (t) => {
-            const p = Math.min(1, (t - t0) / dur);
-            const eased = 1 - Math.pow(1 - p, 3);
-            const v = Math.round(eased * target);
-            counterEl.firstChild.nodeValue = v;
-            if (p < 1) requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-        }
-      });
-    }, { threshold: 0.4 });
-    cio.observe(counterEl);
-  }
 
   // ---------- Stat counters (general) ----------
   document.querySelectorAll('[data-count]').forEach(el => {
@@ -141,128 +213,6 @@
     }, { threshold: 0.5 });
     obs.observe(el);
   });
-
-  // ============================================================
-  // Tweaks panel
-  // ============================================================
-  const DEFAULTS = window.__TWEAK_DEFAULTS || { palette: 'paper', type: 'serif', density: 'comfortable' };
-  let state = { ...DEFAULTS };
-
-  const applyState = () => {
-    document.documentElement.setAttribute('data-palette', state.palette);
-    document.documentElement.setAttribute('data-type', state.type);
-    document.documentElement.setAttribute('data-density', state.density);
-    // sync UI
-    document.querySelectorAll('#tweaks [data-key]').forEach(btn => {
-      const k = btn.dataset.key; const v = btn.dataset.val;
-      btn.classList.toggle('active', state[k] === v);
-    });
-  };
-
-  const tweaksEl = document.getElementById('tweaks');
-
-  function buildTweaks() {
-    tweaksEl.innerHTML = `
-      <h5>Tweaks <button class="close-btn" id="tw-close" aria-label="Zapri">×</button></h5>
-      <div class="group">
-        <div class="group-label">Paleta</div>
-        <div class="swatches">
-          <div class="swatch" data-key="palette" data-val="paper" title="Paper"
-            style="background:linear-gradient(120deg,#f5f2ec 50%,#e60033 50%)"></div>
-          <div class="swatch" data-key="palette" data-val="linen" title="Linen"
-            style="background:linear-gradient(120deg,#efe9dd 50%,#9a5e2a 50%)"></div>
-          <div class="swatch" data-key="palette" data-val="graphite" title="Graphite"
-            style="background:linear-gradient(120deg,#0e1116 50%,#d4a456 50%)"></div>
-          <div class="swatch" data-key="palette" data-val="blueprint" title="Blueprint"
-            style="background:linear-gradient(120deg,#f6f5f1 50%,#1c4dd6 50%)"></div>
-        </div>
-      </div>
-      <div class="group">
-        <div class="group-label">Tipografija</div>
-        <div class="seg">
-          <button data-key="type" data-val="serif">Modern</button>
-          <button data-key="type" data-val="editorial">Editorial</button>
-          <button data-key="type" data-val="mixed-mono">Mono</button>
-        </div>
-      </div>
-      <div class="group">
-        <div class="group-label">Gostota</div>
-        <div class="seg" style="grid-template-columns:1fr 1fr">
-          <button data-key="density" data-val="comfortable">Udobno</button>
-          <button data-key="density" data-val="compact">Strnjeno</button>
-        </div>
-      </div>
-    `;
-
-    tweaksEl.querySelectorAll('[data-key]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const k = btn.dataset.key;
-        const v = btn.dataset.val;
-        state[k] = v;
-        applyState();
-        // persist via host
-        try {
-          window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*');
-        } catch (e) {}
-      });
-    });
-
-    document.getElementById('tw-close').addEventListener('click', () => {
-      tweaksEl.classList.remove('show');
-      try { window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); } catch(e) {}
-    });
-  }
-
-  buildTweaks();
-  applyState();
-
-  // ---------- Pyramid segment focus (hover / keyboard / touch) ----------
-  const pyramidCard = document.querySelector('.pyramid-card--nested');
-  if (pyramidCard) {
-    const triggers = pyramidCard.querySelectorAll('[data-py-segment]');
-    const legendTabs = pyramidCard.querySelectorAll('.pyramid-legend-item[role="tab"]');
-    let touchFocus = null;
-
-    const setFocus = (id) => {
-      if (id) {
-        pyramidCard.setAttribute('data-py-focus', id);
-        legendTabs.forEach((tab) => {
-          tab.setAttribute('aria-selected', tab.dataset.pySegment === id ? 'true' : 'false');
-        });
-      } else {
-        pyramidCard.removeAttribute('data-py-focus');
-        legendTabs.forEach((tab) => tab.setAttribute('aria-selected', 'false'));
-      }
-    };
-
-    triggers.forEach((el) => {
-      const id = el.dataset.pySegment;
-      if (!id) return;
-
-      el.addEventListener('mouseenter', () => setFocus(id));
-      el.addEventListener('focus', () => setFocus(id));
-
-      el.addEventListener('click', () => {
-        if (!window.matchMedia('(hover: none)').matches) return;
-        touchFocus = touchFocus === id ? null : id;
-        setFocus(touchFocus);
-      });
-    });
-
-    pyramidCard.addEventListener('mouseleave', () => setFocus(null));
-
-    pyramidCard.addEventListener('focusout', (e) => {
-      if (!pyramidCard.contains(e.relatedTarget)) setFocus(null);
-    });
-  }
-
-  // Edit mode protocol — listener FIRST, then announce.
-  window.addEventListener('message', (e) => {
-    const d = e.data || {};
-    if (d.type === '__activate_edit_mode')   tweaksEl.classList.add('show');
-    if (d.type === '__deactivate_edit_mode') tweaksEl.classList.remove('show');
-  });
-  try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch(e) {}
 
   // ---------- Journey scroll: keyboard focus only when horizontal (desktop) ----------
   const journeyScroll = document.querySelector('.figure-panel-journey .journey-scroll');
